@@ -1,0 +1,25 @@
+@model PlineFaxServer.Models.ErrorViewModel
+@{
+    ViewData["Title"] = "Error";
+}
+
+<div style="text-align: center;">
+    <h1 class="text-danger">خطا</h1>
+    <hr/>
+    <h2 class="text-danger  mt-5">در زمان درخواست شما برای این صفحه خطایی رخ داد</h2>
+
+    @if (Model.ShowRequestId)
+    {
+        <p>
+            <strong>شناسه خطا:</strong> <code>@Model.RequestId</code>
+        </p>
+    }
+    
+    @if (ViewBag.orginal != null)
+    {
+        <p>
+            <strong>آدرس صفحه:</strong> <code>@ViewBag.orginal</code>
+        </p>
+    }
+    <h4>جهت برسی خطا لطفا با راهبر سیستم تماس بگیرید.</h4>
+</div>

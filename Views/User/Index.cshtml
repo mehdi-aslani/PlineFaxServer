@@ -1,0 +1,98 @@
+@using PlineFaxServer.Tools
+@model IEnumerable<PlineFaxServer.Models.Users.TblUser>
+
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery _xsrf
+
+@functions{
+
+    private string GetAntiXsrfRequestToken()
+    {
+        return _xsrf.GetAndStoreTokens(Context).RequestToken;
+    }
+
+}
+
+<h3>لیست کاربران</h3>
+<hr/>
+<p>
+    <a class="btn btn-primary" asp-action="Create">ایجاد کاربر جدید</a>
+</p>
+<hr/>
+<style type="text/css">
+    .gCol{
+        text-align: center;
+    }
+</style>
+
+@(Html
+    .Grid(Model)
+    .Build(columns =>
+    {
+        columns.Add(model => model.UserName).Titled("نام کاربری");
+        columns.Add(model => model.FirstName).Titled("نام ");
+        columns.Add(model => model.LastName).Titled("نام خانوادگی ");
+        columns.Add(model => model.Department).Titled("واحد مرتبط");
+        columns.Add().Titled("وضعیت کاربر").Encoded(false).RenderedAs(model =>
+            model.Enable ? "کاربر فعال" : "کاربر غیر فعال"
+            );
+        columns.Add().Titled("").Encoded(false).RenderedAs(model =>
+            Html.ActionLink("ویرایش", "Edit", "User", new {id = model.Id},
+                new {@class = "btn btn-warning btn-sm"})
+            );
+        columns.Add().Titled("اعمال وضعیت").Encoded(false).RenderedAs(model =>
+            model.Enable ?
+                PlineHelper.ActiveLinkAjax(
+                    $"javascript:SetStatus('{model.Id}',false);", "غیر فعال", "btn btn-secondary btn-sm")
+                : PlineHelper.ActiveLinkAjax(
+                    $"javascript:SetStatus('{model.Id}',true);", "فعال", "btn btn-success btn-sm")
+            );
+        columns.Add().Titled("حذف").Encoded(false).RenderedAs(model =>
+            PlineHelper.ActiveLinkAjax(
+                $"javascript:DeleteItem('{model.Id}');", "حذف", "btn btn-danger btn-sm")
+            );
+    })
+    .Pageable(pager =>
+    {
+        pager.PageSizes = new Dictionary<int, string> {{0, "All"}, {10, "10"}, {20, "20"}};
+        pager.ShowPageSizes = true;
+        pager.PagesToDisplay = 3;
+        pager.CurrentPage = 4;
+        pager.RowsPerPage = 15;
+    })
+    .Empty("هیچ کاربری وجود ندارد")
+    .Sortable()
+    .Filterable()
+    .Css("gCol")
+    )
+
+<script type="text/javascript">
+    function DeleteItem(id){
+        if (confirm("برای حذف این کاربر مطمئن هستید؟")){
+            var token="@GetAntiXsrfRequestToken()";
+            $.post("@Url.Action("Delete", "User")",{id:id , __RequestVerificationToken:token},
+                function (data){
+                    if (data.error !== ""){
+                        showMyToast("@Globals.ToastWarning",data.error);
+                    }else {
+                        location.reload();
+                    }
+                },"JSON");
+            }
+        }
+        
+        function SetStatus(id,s){
+            if (confirm("برای " + (s == false ? "غیر فعال شدن" : "فعال شدن") + " این کاربر مطمئن هستید؟" )){
+                var token="@GetAntiXsrfRequestToken()";
+                $.post("@Url.Action("Status", "User")",{id:id ,status:s, __RequestVerificationToken:token},
+                    function (data){
+                        if (data.error !== ""){
+                            showMyToast("@Globals.ToastWarning",data.error);
+                        }else {
+                            location.reload();
+                        }
+                },"JSON").fail(function (){
+                    showMyToast("@Globals.ToastError","امکان انجام این درخواست وجود ندارد");
+                });
+            }
+        }
+</script>

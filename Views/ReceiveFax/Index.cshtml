@@ -1,0 +1,86 @@
+@using PlineFaxServer.Tools
+@model IEnumerable<PlineFaxServer.Models.TblReceiveFax>
+
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery _xsrf
+
+@functions{
+    private string GetAntiXsrfRequestToken()
+    {
+        return _xsrf.GetAndStoreTokens(Context).RequestToken;
+    }
+}
+
+<h3>لیست فکس های دریافتی</h3>
+<hr/>
+<style type="text/css">
+    .gCol{
+        text-align: center;
+    }
+    .text-warning,.text-danger{
+        font-size: 15pt;
+    }
+</style>
+@(Html
+    .Grid(Model)
+    .Build(columns =>
+    {
+        columns.Add(model => model.Date).Titled("تاریخ دریافت");
+        columns.Add(model => model.Time).Titled("ساعت دریافت");
+        columns.Add(model => model.Line).Titled("شماره فکس");
+        columns.Add().Titled("فایل دریافتی").RenderedAs(model =>
+            Html.ActionLink(model.FileName, "DownloadFile", "ReceiveFax", new {id = model.Id})
+            );
+        columns.Add(model => model.Status).Titled("وضعیت ارسال").RenderedAs(model =>
+        {
+            return model.Status switch
+            {
+                Globals.FaxStatus.Received => "فکس دریافت شده",
+                Globals.FaxStatus.Archive => "آرشیو شده",
+                Globals.FaxStatus.Delete => "حذف شده",
+                _ => "نامشخص"
+                };
+        });
+        columns.Add().Titled("عملیات").Encoded(false).RenderedAs(model =>
+                model.Status switch
+                {
+                    Globals.FaxStatus.Received =>  PlineHelper.ActiveLinkAjax($"javascript:SetStatus({model.Id},'{@Globals.FaxStatus.Archive}');", "<i class=\"bi bi-exclamation-octagon\"></i>",
+                        "text-warning", "آرشیو فکس") ,
+                    Globals.FaxStatus.Recycle => PlineHelper.ActiveLinkAjax($"javascript:SetStatus({model.Id},'{@Globals.FaxStatus.Delete}');", "<i class=\"bi bi-trash\"></i>",
+                        "text-danger", "حذف فکس"),
+                    _=> PlineHelper.ActiveLinkAjax($"javascript:SetStatus({model.Id},'{@Globals.FaxStatus.Recycle}');", "<i class=\"bi bi-trash\"></i>",
+                        "text-danger", "انتقال به سطل زباله")
+                }
+            );
+        })
+    .Pageable(pager =>
+    {
+        pager.PageSizes = new Dictionary<Int32, String> {{0, "All"}, {10, "10"}, {20, "20"}};
+        pager.ShowPageSizes = true;
+        pager.PagesToDisplay = 3;
+        pager.CurrentPage = 4;
+        pager.RowsPerPage = 15;
+    })
+    .Empty("هیچ فکس وجود ندارد")
+    .Sortable()
+    .Filterable()
+    .Css("gCol")
+    )
+
+<script type="text/javascript">
+    function SetStatus(id,status){
+        if ((status=="@Globals.FaxStatus.Delete" || status=="@Globals.FaxStatus.Recycle") 
+            && confirm("برای حذف این فکس مطمئن هستید؟")==false ){
+               return;
+        }
+        
+        var token="@GetAntiXsrfRequestToken()";
+        $.post("@Url.Action("Status", "ReceiveFax")",{status : status, id : id , __RequestVerificationToken:token},
+            function (data){
+                if (data.result === false){
+                    showMyToast(@Globals.ToastError,data.error);
+                }else {
+                    location.reload();
+                }
+        },"JSON");
+    }
+</script>

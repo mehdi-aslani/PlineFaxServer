@@ -1,0 +1,71 @@
+@using Microsoft.AspNetCore.Html
+@using PlineFaxServer.Tools
+@model IQueryable<PlineFaxServer.Models.TblContact>
+@inject Microsoft.AspNetCore.Antiforgery.IAntiforgery _xsrf
+
+@functions{
+    private string GetAntiXsrfRequestToken()
+    {
+        return _xsrf.GetAndStoreTokens(Context).RequestToken;
+    }
+}
+
+<h3>لیست مخاطبین</h3>
+<hr/>
+<p>
+    <a class="btn btn-primary" asp-action="Create">ایجاد مخاطب جدید</a>
+</p>
+<hr/>
+@(Html
+    .Grid(Model)
+    .Build(columns =>
+    {
+        columns.Add(model => model.Name).Titled("نام ");
+        columns.Add(model => model.LastName).Titled("نام خانوادگی ");
+        columns.Add(model => model.NickName).Titled("نام مستعار");
+        columns.Add(model => model.FaxNumber).Titled("شماره فکس ");
+        columns.Add(model => model.PhoneNumber).Titled("شماره تلفن");
+        columns.Add(model => model.MobileNumber).Titled("شماره موبایل");
+        columns.Add().Titled("").Encoded(false).RenderedAs(model =>
+            Html.ActionLink("جزییات", "Details", "Contact", new {id = model.Id},
+                new {@class = "btn btn-outline-success btn-sm"})
+            );
+        columns.Add().Titled("").Encoded(false).RenderedAs(model =>
+            Html.ActionLink("ویرایش", "Edit", "Contact", new {id = model.Id},
+                new {@class = "btn btn-outline-warning btn-sm"})
+            );
+        columns.Add().Titled("").Encoded(false).RenderedAs(model =>
+            PlineHelper.ActiveLinkAjax($"javascript:DeleteItem({model.Id})", "حذف", "btn btn-outline-danger btn-sm", "")
+            );
+    })
+    .Pageable(pager =>
+    {
+        pager.PageSizes = new Dictionary<int, string> {{0, "All"}, {10, "10"}, {20, "20"}};
+        pager.ShowPageSizes = true;
+        pager.PagesToDisplay = 3;
+        pager.CurrentPage = 4;
+        pager.RowsPerPage = 15;
+    })
+    .Empty("هیچ مخاطبی وجود ندارد")
+    .Sortable()
+    .Filterable()
+    )
+    
+<script type="text/javascript">
+    function DeleteItem(id){
+        if (confirm("برای حذف این مخاطب مطمئن هستید؟")){
+            $.post("@Url.Action("Delete","Contact")",{
+                __RequestVerificationToken: "@GetAntiXsrfRequestToken()",
+                id : id
+            },function (data){
+                if (data.result==0){
+                    showMyToast("@Globals.ToastError", "خطا در حذف اطلاعات!");
+                }else {
+                    location.reload();
+                }
+            },"JSON").fail(function (err){
+                showMyToast("@Globals.ToastError","خطا در عملیات حذف مخاطب");
+            });
+        }
+    }
+</script>
